@@ -24,3 +24,24 @@ auto indices = std::make_shared<std::vector<glm::uint>>();
     for (auto i : tmp)
         indices->emplace_back(i);
 }
+auto norms = std::make_shared<std::vector<glm::vec3>>();
+{
+    std::array tmp{// -Z
+                   glm::vec3{0.f, 0.f, -1.f},
+                   // +Z
+                   glm::vec3{0.f, 0.f, +1.f},
+                   // -Y
+                   glm::vec3{0.f, -1.f, 0.f},
+                   // +Y
+                   glm::vec3{0.f, +1.f, 0.f},
+                   // -X
+                   glm::vec3{-1.f, 0.f, 0.f},
+                   // +X
+                   glm::vec3{+1.f, 0.f, 0.f}};
+    for (auto &v : tmp)
+        norms->emplace_back(v);
+}
+auto nIndices = std::make_shared<std::vector<glm::uint>>();
+for (uint8_t k = 0; k < 12; ++k)
+    for (uint8_t rep = 0; rep < 3; ++rep)
+        nIndices->emplace_back(k >> 1);

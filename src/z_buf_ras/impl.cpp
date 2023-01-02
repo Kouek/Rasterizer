@@ -27,7 +27,7 @@ void kouek::ZBufferRasterizerImpl::runRasterization() {
     colorOutput.assign(resolution, glm::zero<glm::u8vec4>());
     zbuffer.assign(resolution, std::numeric_limits<float>::infinity());
 
-    for (size_t tIdx = 0; tIdx < v2rs.size(); ++tIdx) {
+    for (glm::uint tIdx = 0; tIdx < v2rs.size(); ++tIdx) {
         auto &v2r = v2rs[tIdx];
         if (v2r.vCnt == 0)
             continue;
@@ -87,14 +87,14 @@ void kouek::ZBufferRasterizerImpl::runRasterization() {
             ++nnV;
         }
     }
-    auto RGBF2RGBAU8 = [](const glm::vec3 &rgb) {
+    auto rgbF2rgbaU8 = [](const glm::vec3 &rgb) {
         return glm::u8vec4{(glm::uint8)glm::clamp(rgb.r * 255.f, 0.f, 255.f),
                            (glm::uint8)glm::clamp(rgb.g * 255.f, 0.f, 255.f),
                            (glm::uint8)glm::clamp(rgb.b * 255.f, 0.f, 255.f),
                            255};
     };
 
-    std::unordered_map<size_t, decltype(activeEL)::iterator> pairMaps;
+    std::unordered_map<glm::uint, decltype(activeEL)::iterator> pairMaps;
     size_t rowLftIdx = 0;
     for (glm::uint y = 0; y < rndrSz.y; ++y, rowLftIdx += rndrSz.x) {
         for (auto &edge : activeEL) {
@@ -146,6 +146,17 @@ void kouek::ZBufferRasterizerImpl::runRasterization() {
                 surf2[1].col = v2r.vs[R->v2[0]].surf.col * oneMinusCoeff2[1] +
                                v2r.vs[R->v2[1]].surf.col * R->coeff;
             }
+            std::array<glm::vec4, 2> norm2, wdPos2;
+            if (norms) {
+                norm2[0] = v2r.vs[L->v2[0]].norm * oneMinusCoeff2[0] +
+                           v2r.vs[L->v2[1]].norm * L->coeff;
+                norm2[1] = v2r.vs[R->v2[0]].norm * oneMinusCoeff2[1] +
+                           v2r.vs[R->v2[1]].norm * R->coeff;
+                wdPos2[0] = v2r.vs[L->v2[0]].wdPos * oneMinusCoeff2[0] +
+                            v2r.vs[L->v2[1]].wdPos * L->coeff;
+                wdPos2[1] = v2r.vs[R->v2[0]].wdPos * oneMinusCoeff2[1] +
+                            v2r.vs[R->v2[1]].wdPos * R->coeff;
+            }
             std::array LRLimit{(glm::uint)roundf(L->x),
                                (glm::uint)roundf(R->x)};
             if (LRLimit[1] >= rndrSz.x)
@@ -171,6 +182,7 @@ void kouek::ZBufferRasterizerImpl::runRasterization() {
                 // Perspective Correction (Cont.)
                 auto rhw = rhw2[0] * oneMinusScnLnCoeff + rhw2[1] * scnLnCoeff;
                 rhw = 1.f / rhw;
+
                 V2RDat::SurfDat surf;
                 if (uvs) {
                     surf.uv = surf2[0].uv * oneMinusScnLnCoeff +
@@ -182,14 +194,38 @@ void kouek::ZBufferRasterizerImpl::runRasterization() {
                     surf.col *= rhw;
                 }
 
+                glm::vec4 norm, wdPos;
+                if (norms) {
+                    norm =
+                        norm2[0] * oneMinusScnLnCoeff + norm2[1] * scnLnCoeff;
+                    wdPos =
+                        wdPos2[0] * oneMinusScnLnCoeff + wdPos2[1] * scnLnCoeff;
+                    norm *= rhw;
+                    wdPos *= rhw;
+                }
+
                 // Coloring
+                glm::vec3 color{1.f, 1.f, 1.f};
                 if (uvs)
                     ;
                 else if (colors)
-                    colorOutput[rowLftIdx + x] = RGBF2RGBAU8(surf.col);
-                else
-                    // default color
-                    colorOutput[rowLftIdx + x] = {255, 255, 255, 255};
+                    color = surf.col;
+
+                // Shading
+                if (norms) {
+                    auto ambient = light.ambientStrength * light.ambientColor;
+                    glm::vec3 N{norm};
+                    N = glm::normalize(N);
+                    glm::vec3 lightDir{light.position.x - wdPos.x,
+                                       light.position.y - wdPos.y,
+                                       light.position.z - wdPos.z};
+                    lightDir = glm::normalize(lightDir);
+                    auto diff = std::max(glm::dot(N, lightDir), 0.f);
+                    auto diffuse = diff * light.color;
+                    colorOutput[rowLftIdx + x] =
+                        rgbF2rgbaU8((ambient + diffuse) * color);
+                } else
+                    colorOutput[rowLftIdx + x] = rgbF2rgbaU8(color);
             }
         }
         pairMaps.clear();

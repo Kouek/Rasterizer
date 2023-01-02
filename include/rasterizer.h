@@ -15,13 +15,20 @@ class Rasterizer {
     virtual void Render() = 0;
     virtual void
     SetVertexData(std::shared_ptr<std::vector<glm::vec3>> positions,
-                  std::shared_ptr<std::vector<glm::uint>> indices,
-                  std::shared_ptr<std::vector<glm::vec2>> uvs,
-                  std::shared_ptr<std::vector<glm::uint>> uvIndices) = 0;
-    virtual void
-    SetVertexData(std::shared_ptr<std::vector<glm::vec3>> positions,
                   std::shared_ptr<std::vector<glm::vec3>> colors,
                   std::shared_ptr<std::vector<glm::uint>> indices) = 0;
+    virtual void
+    SetTextureData(std::shared_ptr<std::vector<glm::vec2>> uvs,
+                   std::shared_ptr<std::vector<glm::uint>> uvIndices,
+                   std::shared_ptr<std::vector<glm::vec3>> norms,
+                   std::shared_ptr<std::vector<glm::uint>> nIndices) = 0;
+    struct LightParam {
+        float ambientStrength;
+        glm::vec3 ambientColor;
+        glm::vec3 position;
+        glm::vec3 color;
+    };
+    virtual void SetLight(const LightParam &param) = 0;
     virtual void SetModel(const glm::mat4 &model) = 0;
     virtual void SetView(const glm::mat4 &view) = 0;
     virtual void SetProjective(const glm::mat4 &proj) = 0;

@@ -22,7 +22,7 @@ static glm::uvec2 rndrSz{1024, 1024};
 
 static GLuint rndrTex;
 
-static FPSCamera camera({3.f, 3.f, 3.f}, glm::zero<glm::vec3>());
+static FPSCamera camera({5.f, 5.f, 5.f}, glm::zero<glm::vec3>());
 
 static uint8_t currRasIdx = 0;
 static std::unique_ptr<Rasterizer> rasterizer;
@@ -153,21 +153,20 @@ int main(int argc, char **argv) {
         (std::string(PROJECT_SOURCE_DIR) + "/screen_quad.fs").c_str());
 
     // Load model
+
 //#define TEST_CUBE
 //#define TEST_TRIANGLE
-
 #ifdef TEST_CUBE
 #include <util/cube.inc>
     rasterizer->SetVertexData(positions, colors, indices);
+    rasterizer->SetTextureData(nullptr, nullptr, norms, nIndices);
 #elif defined(TEST_TRIANGLE)
 #include <util/triangle.inc>
     rasterizer->SetVertexData(positions, colors, indices);
 #else
     static constexpr auto MODEL_NAME = "bunny.obj";
     auto positions = std::make_shared<std::vector<glm::vec3>>();
-    auto uvs = std::make_shared<std::vector<glm::vec2>>();
     auto indices = std::make_shared<std::vector<glm::uint>>();
-    auto uvIndices = std::make_shared<std::vector<glm::uint>>();
     try {
         kouek::Mesh mesh;
         mesh.ReadFromFile(std::string(PROJECT_SOURCE_DIR) + "/data/" +
@@ -176,6 +175,8 @@ int main(int argc, char **argv) {
         auto &fvs = mesh.GetFVS();
         auto &vts = mesh.GetVTS();
         auto &fvts = mesh.GetFVTS();
+        auto &vns = mesh.GetVNS();
+        auto &fvns = mesh.GetFVNS();
         std::cout << "Model: " << MODEL_NAME << "loaded." << std::endl;
         std::cout << ">> Model Vertices Num: " << vs.size() << std::endl;
         std::cout << ">> Model Faces Num: " << fvs.size() << std::endl;
@@ -185,17 +186,30 @@ int main(int argc, char **argv) {
         for (const auto &idx3 : fvs)
             for (uint8_t t = 0; t < 3; ++t)
                 indices->emplace_back(idx3[t]);
-        if (fvts.empty()) {
-            uvs.reset();
-            uvIndices.reset();
-        } else {
+        rasterizer->SetVertexData(positions, nullptr, indices);
+
+        std::shared_ptr<std::vector<glm::vec2>> uvs;
+        std::shared_ptr<std::vector<glm::uint>> uvIndices;
+        std::shared_ptr<std::vector<glm::vec3>> norms;
+        std::shared_ptr<std::vector<glm::uint>> nIndices;
+        if (!fvts.empty()) {
+            uvs = std::make_shared<std::vector<glm::vec2>>();
+            uvIndices = std::make_shared<std::vector<glm::uint>>();
             (*uvs) = vts;
             for (const auto &idx3 : fvts)
                 for (uint8_t t = 0; t < 3; ++t)
                     uvIndices->emplace_back(idx3[t]);
         }
+        if (!fvns.empty()) {
+            norms = std::make_shared<std::vector<glm::vec3>>();
+            nIndices = std::make_shared<std::vector<glm::uint>>();
+            (*norms) = vns;
+            for (const auto &idx3 : fvns)
+                for (uint8_t t = 0; t < 3; ++t)
+                    nIndices->emplace_back(idx3[t]);
+        }
+        rasterizer->SetTextureData(uvs, uvIndices, norms, nIndices);
 
-        rasterizer->SetVertexData(positions, indices, uvs, uvIndices);
     } catch (std::exception &exp) {
         std::cout << "Model: " << MODEL_NAME << "loading failed." << std::endl;
         std::cout << ">> Error: " << exp.what() << std::endl;
@@ -207,6 +221,14 @@ int main(int argc, char **argv) {
     rasterizer->SetProjective(glm::perspectiveFov(
         glm::radians(60.f), (float)rndrSz.x, (float)rndrSz.y, .01f, 10.f));
     rasterizer->SetView(camera.GetViewMat());
+    {
+        Rasterizer::LightParam param;
+        param.ambientStrength = .1f;
+        param.ambientColor = glm::vec3{1.f, 0.f, 1.f};
+        param.position = glm::vec3{5.f, 5.f, 5.f};
+        param.color = glm::vec3{1.f, 1.f, 1.f};
+        rasterizer->SetLight(param);
+    }
 
     screenQuadShader.use();
     glClearColor(0, 0, 0, 1.f);
