@@ -15,20 +15,28 @@
 #include <util/mesh.hpp>
 #include <util/shader.hpp>
 
+#include <cmdparser.hpp>
+
 using namespace kouek;
 
-static glm::uvec2 rndrCap{0, 0};
 static glm::uvec2 rndrSz{1024, 1024};
 
 static GLuint rndrTex;
 
 static FPSCamera camera({5.f, 5.f, 5.f}, glm::zero<glm::vec3>());
 
-static uint8_t currRasIdx = 0;
 static std::unique_ptr<Rasterizer> rasterizer;
 
 int main(int argc, char **argv) {
-    // GLFW context, use OpenGL 4.4
+    // Command parser
+    cli::Parser parser(argc, argv);
+    parser.set_required<std::string>("m", "model", "Model Path");
+    parser.set_optional<uint32_t>(
+        "r", "rasterizer", 1,
+        "Rasterizer Type, 0: Normal, 1: Hierarchical, 2: Simple Hierarchical");
+    parser.run_and_exit_if_error();
+
+    // GLFW context
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
@@ -105,10 +113,26 @@ int main(int argc, char **argv) {
     }
 
     // Create rasterizer
-    rasterizer = ZBufferRasterizer::Create();
+    switch (parser.get<uint32_t>("r")) {
+    case 0:
+        std::cout << "Rasterizer: "
+                  << "Normal" << std::endl;
+        rasterizer = ZBufferRasterizer::Create();
+        break;
+    case 1:
+        std::cout << "Rasterizer: "
+                  << "Hierarchical ZBuffer" << std::endl;
+        rasterizer = HierarchicalZBufferRasterizer::Create();
+        break;
+    case 2:
+        std::cout << "Rasterizer: "
+                  << "Simple Hierarchical ZBuffer" << std::endl;
+        rasterizer = SimpleHZBufferRasterizer::Create();
+        break;
+    }
     rasterizer->SetRenderSize(rndrSz);
 
-    // Create CUDA interpolated texture in GL
+    // Create texture to be rendered in GL
     glGenTextures(1, &rndrTex);
     glBindTexture(GL_TEXTURE_2D, rndrTex);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -164,20 +188,19 @@ int main(int argc, char **argv) {
 #include <util/triangle.inc>
     rasterizer->SetVertexData(positions, colors, indices);
 #else
-    static constexpr auto MODEL_NAME = "bunny.obj";
+    auto modelPath = parser.get<std::string>("m");
     auto positions = std::make_shared<std::vector<glm::vec3>>();
     auto indices = std::make_shared<std::vector<glm::uint>>();
     try {
         kouek::Mesh mesh;
-        mesh.ReadFromFile(std::string(PROJECT_SOURCE_DIR) + "/data/" +
-                          MODEL_NAME);
+        mesh.ReadFromFile(modelPath);
         auto &vs = mesh.GetVS();
         auto &fvs = mesh.GetFVS();
         auto &vts = mesh.GetVTS();
         auto &fvts = mesh.GetFVTS();
         auto &vns = mesh.GetVNS();
         auto &fvns = mesh.GetFVNS();
-        std::cout << "Model: " << MODEL_NAME << "loaded." << std::endl;
+        std::cout << "Model: " << modelPath << std::endl;
         std::cout << ">> Model Vertices Num: " << vs.size() << std::endl;
         std::cout << ">> Model Faces Num: " << fvs.size() << std::endl;
 
@@ -211,7 +234,7 @@ int main(int argc, char **argv) {
         rasterizer->SetTextureData(uvs, uvIndices, norms, nIndices);
 
     } catch (std::exception &exp) {
-        std::cout << "Model: " << MODEL_NAME << "loading failed." << std::endl;
+        std::cout << "Model: " << modelPath << "loading failed." << std::endl;
         std::cout << ">> Error: " << exp.what() << std::endl;
     }
 #endif // TEST_CUBE
@@ -224,9 +247,9 @@ int main(int argc, char **argv) {
     {
         Rasterizer::LightParam param;
         param.ambientStrength = .1f;
-        param.ambientColor = glm::vec3{1.f, 0.f, 1.f};
+        param.ambientColor = glm::vec3{1.f, 1.f, 1.f};
         param.position = glm::vec3{5.f, 5.f, 5.f};
-        param.color = glm::vec3{1.f, 1.f, 1.f};
+        param.color = glm::vec3{.6f, .5f, .8f};
         rasterizer->SetLight(param);
     }
 

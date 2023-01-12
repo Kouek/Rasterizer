@@ -27,6 +27,7 @@ void kouek::ZBufferRasterizerImpl::runRasterization() {
     colorOutput.assign(resolution, glm::zero<glm::u8vec4>());
     zbuffer.assign(resolution, std::numeric_limits<float>::infinity());
 
+    // Init Sorted Edge Tables
     for (glm::uint tIdx = 0; tIdx < v2rs.size(); ++tIdx) {
         auto &v2r = v2rs[tIdx];
         if (v2r.vCnt == 0)
@@ -87,13 +88,8 @@ void kouek::ZBufferRasterizerImpl::runRasterization() {
             ++nnV;
         }
     }
-    auto rgbF2rgbaU8 = [](const glm::vec3 &rgb) {
-        return glm::u8vec4{(glm::uint8)glm::clamp(rgb.r * 255.f, 0.f, 255.f),
-                           (glm::uint8)glm::clamp(rgb.g * 255.f, 0.f, 255.f),
-                           (glm::uint8)glm::clamp(rgb.b * 255.f, 0.f, 255.f),
-                           255};
-    };
 
+    // Scanline Rendering
     std::unordered_map<glm::uint, decltype(activeEL)::iterator> pairMaps;
     size_t rowLftIdx = 0;
     for (glm::uint y = 0; y < rndrSz.y; ++y, rowLftIdx += rndrSz.x) {
@@ -107,12 +103,10 @@ void kouek::ZBufferRasterizerImpl::runRasterization() {
         activeEL.sort();
 
         auto R = activeEL.begin();
-        if (R != activeEL.end()) {
-            pairMaps.emplace(std::piecewise_construct,
-                             std::forward_as_tuple(R->tIdx),
-                             std::forward_as_tuple(R));
-            ++R;
-        }
+        pairMaps.emplace(std::piecewise_construct,
+                         std::forward_as_tuple(R->tIdx),
+                         std::forward_as_tuple(R));
+        ++R;
         while (R != activeEL.end()) {
             auto pairedItr = pairMaps.find(R->tIdx);
             if (pairedItr == pairMaps.end()) {

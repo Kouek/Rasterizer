@@ -38,8 +38,6 @@ const std::vector<glm::u8vec4> &kouek::RasterizerImpl::GetColorOutput() {
 }
 
 void kouek::RasterizerImpl::runPreRasterization() {
-    auto MVP = P * V * M;
-
     auto pos32pos4 = [](glm::vec4 &o, const glm::vec3 &in) {
         o.x = in.x;
         o.y = in.y;
@@ -164,7 +162,7 @@ void kouek::RasterizerImpl::runPreRasterization() {
                         v2r.vs[currValidVertCnt].surf.col =
                             tmp[S].surf.col +
                             t * (tmp[P].surf.col - tmp[S].surf.col);
-                    
+
                     if (norms) {
                         v2r.vs[currValidVertCnt].norm =
                             tmp[S].norm + t * (tmp[P].norm - tmp[S].norm);
@@ -186,16 +184,20 @@ void kouek::RasterizerImpl::runPreRasterization() {
         }
     };
 
-    for (glm::uint tIdx = 0; tIdx < triangleNum; ++tIdx) {
-        auto &v2r = v2rs[tIdx];
+#ifdef SHOW_DRAW_FACE_NUM
+    glm::uint drawFaceCnt = 0;
+#endif // SHOW_DRAW_FACE_NUM
+    for (glm::uint fIdx = 0; fIdx < triangleNum; ++fIdx) {
+        auto &v2r = v2rs[fIdx];
         v2r.vCnt = 0;
 
         // Vertex Shader
-        bool nearPlaneClipOK = runVertexShader(tIdx);
+        bool nearPlaneClipOK = runVertexShader(fIdx);
         if (!nearPlaneClipOK)
             continue;
 
         // Face Culling
+#ifndef NO_BACK_FACE_CULL
         {
             glm::vec3 v0v1{v2r.vs[1].pos.x - v2r.vs[0].pos.x,
                            v2r.vs[1].pos.y - v2r.vs[0].pos.y,
@@ -207,11 +209,16 @@ void kouek::RasterizerImpl::runPreRasterization() {
             if (v0v1.z < 0) // cull back face
                 continue;
         }
+#endif // !NO_BACK_FACE_CULL
 
         // Perspective Clipping
         runSutherlandHodgemanClip(v2r);
         if (v2r.vCnt == 0)
             continue;
+
+#ifdef SHOW_DRAW_FACE_NUM
+        ++drawFaceCnt;
+#endif // SHOW_DRAW_FACE_NUM
 
         // Camera Space -> Screen Space
         for (uint8_t v = 0; v < v2r.vCnt; ++v) {
@@ -219,4 +226,8 @@ void kouek::RasterizerImpl::runPreRasterization() {
             v2r.vs[v].pos.y = (v2r.vs[v].pos.y + 1.f) * .5f * rndrSz.y;
         }
     }
+
+#ifdef SHOW_DRAW_FACE_NUM
+    std::cout << ">> draw face num (v):\t" << drawFaceCnt << std::endl;
+#endif // SHOW_DRAW_FACE_NUM
 }

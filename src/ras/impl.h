@@ -1,6 +1,11 @@
 #ifndef KOUEK_RAS_IMPL_H
 #define KOUEK_RAS_IMPL_H
 
+//#define SHOW_DRAW_FACE_NUM
+//#define NO_BACK_FACE_CULL
+
+#include <iostream>
+
 #include <rasterizer.h>
 
 #include <array>
@@ -17,6 +22,7 @@ class RasterizerImpl : virtual public Rasterizer {
     glm::mat4 M = glm::identity<glm::mat4>();
     glm::mat4 V = glm::identity<glm::mat4>();
     glm::mat4 P = glm::identity<glm::mat4>();
+    glm::mat4 MVP = glm::identity<glm::mat4>();
 
     LightParam light;
 
@@ -58,14 +64,29 @@ class RasterizerImpl : virtual public Rasterizer {
                    std::shared_ptr<std::vector<glm::vec3>> norms,
                    std::shared_ptr<std::vector<glm::uint>> nIndices) override;
     virtual void SetLight(const LightParam &param) override { light = param; }
-    virtual void SetModel(const glm::mat4 &model) override { M = model; }
-    virtual void SetView(const glm::mat4 &view) override { V = view; }
-    virtual void SetProjective(const glm::mat4 &proj) override { P = proj; }
+    virtual void SetModel(const glm::mat4 &model) override {
+        M = model;
+        MVP = P * V * M;
+    }
+    virtual void SetView(const glm::mat4 &view) override {
+        V = view;
+        MVP = P * V * M;
+    }
+    virtual void SetProjective(const glm::mat4 &proj) override {
+        P = proj;
+        MVP = P * V * M;
+    }
     virtual void SetRenderSize(const glm::uvec2 &rndrSz) override;
     virtual const std::vector<glm::u8vec4> &GetColorOutput() override;
 
   protected:
     void runPreRasterization();
+    inline glm::u8vec4 rgbF2rgbaU8(const glm::vec3 &rgb) {
+        return glm::u8vec4{(glm::uint8)glm::clamp(rgb.r * 255.f, 0.f, 255.f),
+                           (glm::uint8)glm::clamp(rgb.g * 255.f, 0.f, 255.f),
+                           (glm::uint8)glm::clamp(rgb.b * 255.f, 0.f, 255.f),
+                           255};
+    };
 };
 
 } // namespace kouek

@@ -12,6 +12,13 @@ class HierarchicalZBufferRasterizer : virtual public Rasterizer {
     static std::unique_ptr<Rasterizer> Create();
 };
 
+class SimpleHZBufferRasterizer : virtual public Rasterizer {
+  public:
+    virtual ~SimpleHZBufferRasterizer() {}
+
+    static std::unique_ptr<Rasterizer> Create();
+};
+
 } // namespace kouek
 
 #endif // !KOUEK_H_Z_BUF_RAS_H
