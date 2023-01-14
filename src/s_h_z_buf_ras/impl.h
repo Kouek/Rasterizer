@@ -49,35 +49,33 @@ class SimpleHZBufferRasterizerImpl : public RasterizerImpl,
         glm::uvec2 min{std::numeric_limits<glm::uint>::max()};
         glm::uvec2 max{std::numeric_limits<glm::uint>::min()};
         for (uint8_t v = 0; v < v2r.vCnt; ++v) {
-            glm::vec2 xy{v2r.vs[v].pos.x, v2r.vs[v].pos.y};
-            xy = glm::round(xy);
-            if (min.x > (glm::uint)xy.x)
-                min.x = (glm::uint)xy.x;
-            if (min.y > (glm::uint)xy.y)
-                min.y = (glm::uint)xy.y;
-            if (max.x < (glm::uint)xy.x)
-                max.x = (glm::uint)xy.x;
-            if (max.y < (glm::uint)xy.y)
-                max.y = (glm::uint)xy.y;
+            glm::uvec2 xy{roundf(v2r.vs[v].pos.x), roundf(v2r.vs[v].pos.y)};
+            if (min.x > xy.x)
+                min.x = xy.x;
+            if (min.y > xy.y)
+                min.y = xy.y;
+            if (max.x < xy.x)
+                max.x = xy.x;
+            if (max.y < xy.y)
+                max.y = xy.y;
         }
-        for (uint8_t xy = 0; xy < 2; ++xy) {
-            if (min[xy] >= rndrSz[xy])
-                min[xy] = rndrSz[xy] - 1;
+        for (uint8_t xy = 0; xy < 2; ++xy)
             if (max[xy] >= rndrSz[xy])
                 max[xy] = rndrSz[xy] - 1;
-        }
         return std::make_tuple(min, max);
     }
     inline uint8_t getMipmapLvl(const glm::uvec2 &min, const glm::uvec2 &max) {
         auto v2 = max - min;
         v2.x = std::min(v2.x, v2.y);
-        uint8_t lvl;
-        for (uint8_t lvlPlusOne = Z_BUF_MIPMAP_LVL_NUM; lvlPlusOne > 1;
+        uint8_t lvl, lvlPlusOne;
+        for (lvlPlusOne = Z_BUF_MIPMAP_LVL_NUM; lvlPlusOne > 1;
              --lvlPlusOne) {
             lvl = lvlPlusOne - 1;
             if (rndrSzMipmap[lvl].x <= v2.x && rndrSzMipmap[lvl].y <= v2.x)
                 break;
         }
+        if (lvlPlusOne == 1)
+            return 0; // too small to use mipmap
         return lvl;
     }
     inline void initSortedET(const V2R &v2r, uint8_t lvl) {

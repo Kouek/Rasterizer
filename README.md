@@ -6,12 +6,12 @@ This is one of the projects of Advanced Computer Graphics in ZJU. The main purpo
 
 # 完成项 Done List
 
-- OBJ文件导入（10K面数级）OBJ File Import
+- OBJ文件导入（100K面数级）OBJ File Import
 - 扫描线Z-Buffer光栅化算法 Scanline Z-Buffer Rasterization Algorithm
 - Phong光照模型 Phong Shading Model
+- 层级Z-Buffer光栅化算法 Hierarchical Scanline Z-Buffer Rasterization Algorithm
 
 # 未完成项 Undo List
 
-- 层级Z-Buffer光栅化算法 Hierarchical Scanline Z-Buffer Rasterization Algorithm
 - CUDA
 - ...

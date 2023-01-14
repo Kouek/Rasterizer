@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
     auto onKeyActivated = [](GLFWwindow *window, int key, int scancode,
                              int action, int mods) {
         static constexpr auto ROT_SENS = 1.f;
-        static constexpr auto MOV_SENS = .05f;
+        static constexpr auto MOV_SENS = .1f;
 
         switch (key) {
         case GLFW_KEY_ESCAPE:

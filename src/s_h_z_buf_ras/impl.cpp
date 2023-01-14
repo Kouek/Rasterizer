@@ -37,9 +37,14 @@ void kouek::SimpleHZBufferRasterizerImpl::Render() {
 void kouek::SimpleHZBufferRasterizerImpl::runRasterization() {
     auto depTestFace = [&](const V2R &v2r, glm::uvec2 min, glm::uvec2 max) {
         auto lvl = getMipmapLvl(min, max);
+        if (lvl == 0)
+            return true;
+
         for (uint8_t xy = 0; xy < 2; ++xy) {
             min[xy] = min[xy] >> lvl;
             max[xy] = max[xy] >> lvl;
+            if (max[xy] >= rndrSzMipmap[lvl][xy] && rndrSzMipmap[lvl][xy] != 0)
+                max[xy] = rndrSzMipmap[lvl][xy] - 1;
         }
 
         initSortedET(v2r, lvl);
@@ -47,8 +52,8 @@ void kouek::SimpleHZBufferRasterizerImpl::runRasterization() {
         // Scanline Rendering
         bool pass = false;
         size_t rowLftIdx = (size_t)min.y * (size_t)rndrSzMipmap[lvl].x;
-        for (glm::uint y = min.y; y <= max.y;
-             ++y, rowLftIdx += rndrSzMipmap[lvl].x) {
+        glm::uint y;
+        for (y = min.y; y <= max.y; ++y, rowLftIdx += rndrSzMipmap[lvl].x) {
             for (auto &edge : activeEL) {
                 edge.x += edge.dx;
                 edge.coeff += edge.dcoeff;
@@ -86,7 +91,7 @@ void kouek::SimpleHZBufferRasterizerImpl::runRasterization() {
                 auto dep = dep2[0] * oneMinusScnLnCoeff + dep2[1] * scnLnCoeff;
                 if (dep <= zbufferMipmap[lvl][rowLftIdx + x]) {
                     pass = true;
-                    break;
+                    goto FINAL_PER_TRIANGLE;
                 }
             }
 
@@ -98,8 +103,9 @@ void kouek::SimpleHZBufferRasterizerImpl::runRasterization() {
                     ++R;
         }
 
+    FINAL_PER_TRIANGLE:
         activeEL.clear();
-        for (glm::uint y = min.y; y <= max.y; ++y)
+        for (; y <= max.y; ++y)
             sortedET[y].clear();
 
         return pass;

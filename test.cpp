@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
     // Command parser
     cli::Parser parser(argc, argv);
     parser.set_required<std::string>("m", "model", "Model Path");
-    parser.set_optional<uint32_t>("t", "test-time", 20, "Test Repeat Times");
+    parser.set_optional<uint32_t>("t", "test-time", 45, "Test Repeat Times");
     parser.run_and_exit_if_error();
 
     // Create rasterizer

@@ -193,7 +193,7 @@ bool kouek::HierarchicalZBufferRasterizerImpl::depTestOctreeNode(
             glm::uvec2 min{std::numeric_limits<glm::uint>::max()};
             glm::uvec2 max{std::numeric_limits<glm::uint>::min()};
 
-            auto computeMinMax = [&](uint8_t v) {
+            auto computeMinMax = [&](uint8_t v, uint8_t lvl) {
                 if (min.x > triangle[v].x)
                     min.x = triangle[v].x;
                 if (min.y > triangle[v].y)
@@ -202,6 +202,11 @@ bool kouek::HierarchicalZBufferRasterizerImpl::depTestOctreeNode(
                     max.x = triangle[v].x;
                 if (max.y < triangle[v].y)
                     max.y = triangle[v].y;
+
+                if (max.x >= rndrSzMipmap[lvl].x && rndrSzMipmap[lvl].x != 0)
+                    max.x = rndrSzMipmap[lvl].x - 1;
+                if (max.y >= rndrSzMipmap[lvl].y && rndrSzMipmap[lvl].y != 0)
+                    max.y = rndrSzMipmap[lvl].y - 1;
             };
 
             for (uint8_t v = 0; v < 3; ++v) {
@@ -209,10 +214,12 @@ bool kouek::HierarchicalZBufferRasterizerImpl::depTestOctreeNode(
                     (positions[indices[i + v]].x + 1.f) * .5f * rndrSz.x);
                 triangle[v].y = (glm::uint)roundf(
                     (positions[indices[i + v]].y + 1.f) * .5f * rndrSz.y);
-                computeMinMax(v);
+                computeMinMax(v, 0);
             }
 
             auto lvl = getMipmapLvl(min, max);
+            if (lvl == 0)
+                return true;
             min.x = std::numeric_limits<glm::uint>::max();
             min.y = std::numeric_limits<glm::uint>::max();
             max.x = std::numeric_limits<glm::uint>::min();
@@ -221,7 +228,7 @@ bool kouek::HierarchicalZBufferRasterizerImpl::depTestOctreeNode(
             for (uint8_t v = 0; v < 3; ++v) {
                 triangle[v].x = triangle[v].x >> lvl;
                 triangle[v].y = triangle[v].y >> lvl;
-                computeMinMax(v);
+                computeMinMax(v, lvl);
             }
 
             std::array<uint8_t, 3> v3;
@@ -281,8 +288,8 @@ bool kouek::HierarchicalZBufferRasterizerImpl::depTestOctreeNode(
 
             // Scanline Rendering
             size_t rowLftIdx = (size_t)min.y * (size_t)rndrSzMipmap[lvl].x;
-            for (glm::uint y = min.y; y <= max.y;
-                 ++y, rowLftIdx += rndrSzMipmap[lvl].x) {
+            glm::uint y;
+            for (y = min.y; y <= max.y; ++y, rowLftIdx += rndrSzMipmap[lvl].x) {
                 for (auto &edge : activeEL) {
                     edge.x += edge.dx;
                     edge.coeff += edge.dcoeff;
@@ -336,7 +343,7 @@ bool kouek::HierarchicalZBufferRasterizerImpl::depTestOctreeNode(
 
         FINAL_PER_TRIANGLE:
             activeEL.clear();
-            for (glm::uint y = min.y; y <= max.y; ++y)
+            for (; y <= max.y; ++y)
                 sortedET[y].clear();
             if (pass)
                 return true;
